@@ -13,21 +13,26 @@ const messages = stylelint.utils.ruleMessages(ruleName, {
 const variableDefinitionRegex = /^\s*(--[\w|-]+):/gm
 
 // Match CSS variables defined with the color-variables mixin
-const colorModeVariableDefinitionRegex = /^[^/\n]*\(["']?([^'"\s,]+)["']?,\s*\(light|dark:/gm
+const defaultColorModeVariableDefinitionRegex = /^[^/\n]*\(["']?([^'"\s,]+)["']?,\s*\(light|dark:/gm
 
 // Match CSS variable references (e.g var(--color-text-primary))
 // eslint-disable-next-line no-useless-escape
-const variableReferenceRegex = /var\(([^\),]+)(,.*)?\)/g
+const defaultVariableReferenceRegex = /var\(([^\),]+)(,.*)?\)/g
 
 module.exports = stylelint.createPlugin(ruleName, (enabled, options = {}) => {
   if (!enabled) {
     return noop
   }
 
-  const {files = ['**/*.scss', '!node_modules'], verbose = false} = options
+  const {files = ['**/*.scss', '!node_modules'], verbose = false, regex = {}} = options
+  const colorModeVariableDefinitionRegex = regex.mixinDefinition
+    ? new RegExp(regex.mixinDefinition, 'gm')
+    : defaultColorModeVariableDefinitionRegex
+  const variableReferenceRegex = regex.reference ? new RegExp(regex.reference, 'g') : defaultVariableReferenceRegex
+
   // eslint-disable-next-line no-console
   const log = verbose ? (...args) => console.warn(...args) : noop
-  const definedVariables = getDefinedVariables(files, log)
+  const definedVariables = getDefinedVariables(files, log, colorModeVariableDefinitionRegex, variableReferenceRegex)
 
   // Keep track of declarations we've already seen
   const seen = new WeakMap()
@@ -76,7 +81,7 @@ module.exports = stylelint.createPlugin(ruleName, (enabled, options = {}) => {
 const cwd = process.cwd()
 const cache = new TapMap()
 
-function getDefinedVariables(globs, log) {
+function getDefinedVariables(globs, log, colorModeVariableDefinitionRegex) {
   const cacheKey = JSON.stringify({globs, cwd})
   return cache.tap(cacheKey, () => {
     const definedVariables = new Set()
