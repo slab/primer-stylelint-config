@@ -19,6 +19,7 @@ module.exports = stylelint.createPlugin(ruleName, (enabled, options = {}) => {
   const {verbose = false} = options
   // eslint-disable-next-line no-console
   const log = verbose ? (...args) => console.warn(...args) : noop
+  const disallowedPattern = options.disallowedPattern ? new RegExp(options.disallowedPattern) : /^--color-(scale|auto)-/
 
   // Keep track of declarations we've already seen
   const seen = new WeakMap()
@@ -34,7 +35,7 @@ module.exports = stylelint.createPlugin(ruleName, (enabled, options = {}) => {
 
         for (const [, variableName] of matchAll(decl.value, variableReferenceRegex)) {
           log(`Found variable reference ${variableName}`)
-          if (variableName.match(/^--color-(scale|auto)-/)) {
+          if (variableName.match(disallowedPattern)) {
             stylelint.utils.report({
               message: messages.rejected(variableName),
               node: decl,
